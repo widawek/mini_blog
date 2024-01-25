@@ -10,4 +10,3 @@ class Entry(db.Model):
                          default=datetime.datetime.utcnow)
     is_published = db.Column(db.Boolean, default=False)
 
-    
