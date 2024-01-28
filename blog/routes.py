@@ -12,35 +12,35 @@ def index():
     return render_template("homepage.html", all_posts=all_posts)
 
 
-@app.route("/new-post/", methods=["GET", "POST"])
-def create_entry():
-    form = EntryForm()
-    errors = None
-    if request.method == "POST":
-        if form.validate_on_submit():
-            entry = Entry(
+@app.route("/post/<int:entry_id>", methods=["GET", "POST"])
+@app.route("/post/", defaults={'entry_id': None}, methods=["GET", "POST"])
+def post(entry_id):
+    entry = None
+    if entry_id:
+        entry = Entry.query.filter_by(id=entry_id).first_or_404()
+        form = EntryForm(obj=entry)
+        flash_text = 'Post został pomyślnie zaktualizowany!'
+
+    else:
+        form = EntryForm()
+        entry = Entry(
                 title=form.title.data,
                 body=form.body.data,
                 is_published=form.is_published.data
             )
-            db.session.add(entry)
-            db.session.commit()
-            flash('Post został dodany pomyślnie!', 'success')
-        else:
-            errors = form.errors
-    return render_template("entry_form.html", form=form, errors=errors)
+        flash_text = 'Post został dodany pomyślnie!'
 
-
-@app.route("/edit-post/<int:entry_id>", methods=["GET", "POST"])
-def edit_entry(entry_id):
-    entry = Entry.query.filter_by(id=entry_id).first_or_404()
-    form = EntryForm(obj=entry)
     errors = None
     if request.method == "POST":
         if form.validate_on_submit():
-            form.populate_obj(entry)
-            db.session.commit()
-            flash('Post został pomyślnie zaktualizowany!', 'success')
-        else:
-            errors = form.errors
+            if entry_id:
+                form.populate_obj(entry)
+                db.session.commit()
+            else:
+                db.session.add(entry)
+                db.session.commit()
+            flash(flash_text, 'success')
+    else:
+        errors = form.errors
+
     return render_template("entry_form.html", form=form, errors=errors)
