@@ -2,6 +2,16 @@ from flask import render_template, request, flash, session, redirect, url_for
 from blog import app
 from blog.models import Entry, db
 from blog.forms import EntryForm, LoginForm
+import functools
+
+
+def login_required(view_func):
+    @functools.wraps(view_func)
+    def check_permissions(*args, **kwargs):
+        if session.get('logged_in'):
+            return view_func(*args, **kwargs)
+        return redirect(url_for('login', next=request.path))
+    return check_permissions
 
 
 @app.route("/")
@@ -14,6 +24,7 @@ def index():
 
 @app.route("/post/<int:entry_id>", methods=["GET", "POST"])
 @app.route("/post/", defaults={'entry_id': None}, methods=["GET", "POST"])
+@login_required
 def post(entry_id):
     entry = None
     if entry_id:
@@ -67,4 +78,22 @@ def logout():
     if request.method == 'POST':
         session.clear()
         flash('You are now logged out.', 'success')
+    return redirect(url_for('index'))
+
+
+@app.route("/drafts/", methods=['GET'])
+@login_required
+def list_drafts():
+    drafts = Entry.query.filter_by(is_published=False)\
+        .order_by(Entry.pub_date.desc())
+    return render_template("drafts.html", drafts=drafts)
+
+
+@app.route("/post/delete/<int:entry_id>", methods=["POST"])
+@login_required
+def delete_entry(entry_id):
+    entry = Entry.query.get_or_404(entry_id)
+    db.session.delete(entry)
+    db.session.commit()
+    flash('Wpis został usunięty.', 'success')
     return redirect(url_for('index'))
